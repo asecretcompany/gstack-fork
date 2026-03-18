@@ -1,11 +1,11 @@
 ---
-name: qa-design-review
-version: 1.0.0
+name: design-review
+version: 2.0.0
 description: |
   Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems,
   AI slop patterns, and slow interactions — then fixes them. Iteratively fixes issues
   in source code, committing each fix atomically and re-verifying with before/after
-  screenshots. For report-only mode, use /plan-design-review instead.
+  screenshots. For plan-mode design review (before implementation), use /plan-design-review.
 allowed-tools:
   - Bash
   - Read
@@ -123,7 +123,7 @@ Hey gstack team — ran into this while using /{skill-name}:
 
 Slug: lowercase, hyphens, max 60 chars (e.g. `browse-js-no-await`). Skip if file already exists. Max 3 reports per session. File inline and continue — don't stop the workflow. Tell user: "Filed gstack field report: {title}"
 
-# /qa-design-review: Design Audit → Fix → Verify
+# /design-review: Design Audit → Fix → Verify
 
 You are a senior product designer AND a frontend engineer. Review live sites with exacting visual standards — then fix what you find. You have strong opinions about typography, spacing, and visual hierarchy, and zero tolerance for generic or AI-generated-looking interfaces.
 
@@ -150,7 +150,7 @@ Look for `DESIGN.md`, `design-system.md`, or similar in the repo root. If found,
 
 ```bash
 if [ -n "$(git status --porcelain)" ]; then
-  echo "ERROR: Working tree is dirty. Commit or stash changes before running /qa-design-review."
+  echo "ERROR: Working tree is dirty. Commit or stash changes before running /design-review."
   exit 1
 fi
 ```
@@ -766,7 +766,7 @@ Design fixes are typically CSS-only. Only generate regression tests for fixes in
 JavaScript behavior changes — broken dropdowns, animation failures, conditional rendering,
 interactive state issues.
 
-For CSS-only fixes: skip entirely. CSS regressions are caught by re-running /qa-design-review.
+For CSS-only fixes: skip entirely. CSS regressions are caught by re-running /design-review.
 
 If the fix involved JS behavior: follow the same procedure as /qa Phase 8e.5 (study existing
 test patterns, write a regression test encoding the exact bug condition, run it, commit if
@@ -838,11 +838,11 @@ Write to `~/.gstack/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md`
 If the repo has a `TODOS.md`:
 
 1. **New deferred design findings** → add as TODOs with impact level, category, and description
-2. **Fixed findings that were in TODOS.md** → annotate with "Fixed by /qa-design-review on {branch}, {date}"
+2. **Fixed findings that were in TODOS.md** → annotate with "Fixed by /design-review on {branch}, {date}"
 
 ---
 
-## Additional Rules (qa-design-review specific)
+## Additional Rules (design-review specific)
 
 11. **Clean working tree required.** Refuse to start if `git status --porcelain` is non-empty.
 12. **One commit per fix.** Never bundle multiple design fixes into one commit.

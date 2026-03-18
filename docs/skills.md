@@ -6,14 +6,14 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 |-------|----------------|--------------|
 | [`/plan-ceo-review`](#plan-ceo-review) | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
 | [`/plan-eng-review`](#plan-eng-review) | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
-| [`/plan-design-review`](#plan-design-review) | **Senior Designer** | 80-item design audit with letter grades. AI Slop detection. Infers your design system. Report only — never touches code. |
+| [`/plan-design-review`](#plan-design-review) | **Senior Designer** | Interactive plan-mode design review. Rates each dimension 0-10, explains what a 10 looks like, fixes the plan. Works in plan mode. |
 | [`/design-consultation`](#design-consultation) | **Design Partner** | Build a complete design system from scratch. Knows the landscape, proposes creative risks, generates realistic product mockups. Design at the heart of all other phases. |
 | [`/review`](#review) | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | [`/ship`](#ship) | **Release Engineer** | Sync main, run tests, audit coverage, push, open PR. Bootstraps test frameworks if you don't have one. One command. |
 | [`/browse`](#browse) | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. |
 | [`/qa`](#qa) | **QA Lead** | Test your app, find bugs, fix them with atomic commits, re-verify. Auto-generates regression tests for every fix. |
 | [`/qa-only`](#qa) | **QA Reporter** | Same methodology as /qa but report only. Use when you want a pure bug report without code changes. |
-| [`/qa-design-review`](#qa-design-review) | **Designer Who Codes** | Same audit as /plan-design-review, then fixes what it finds. Atomic commits, before/after screenshots. |
+| [`/design-review`](#design-review) | **Designer Who Codes** | Live-site visual audit + fix loop. 80-item audit, then fixes what it finds. Atomic commits, before/after screenshots. |
 | [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
 | [`/retro`](#retro) | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. |
 | [`/document-release`](#document-release) | **Technical Writer** | Update all project docs to match what you just shipped. Catches stale READMEs automatically. |
@@ -155,54 +155,50 @@ When `/plan-eng-review` finishes the test review section, it writes a test plan 
 
 ## `/plan-design-review`
 
-This is my **senior designer mode**.
+This is my **senior designer reviewing your plan** — before you write a single line of code.
 
-Most developers cannot tell whether their site looks AI-generated. I could not, until I started paying attention. There is a growing class of sites that are functional but soulless — they work fine but scream "an AI built this and nobody with taste looked at it." Purple gradients, 3-column icon grids, uniform bubbly border-radius on everything, centered text on every section, decorative blobs floating in the background. The ChatGPT aesthetic.
+Most plans describe what the backend does but never specify what the user actually sees. Empty states? Error states? Loading states? Mobile layout? AI slop risk? These decisions get deferred to "figure it out during implementation" — and then an engineer ships "No items found." as the empty state because nobody specified anything better.
 
-`/plan-design-review` gives the agent a designer's eye.
+`/plan-design-review` catches all of this during planning, when it's cheap to fix.
 
-It opens your site and reacts to it the way a Stripe or Linear designer would — immediately, viscerally, with opinions. The first output is a structured gut reaction: what the site communicates at a glance, what the eye is drawn to, and a one-word verdict. That is the most valuable part. Everything after is supporting evidence.
+It works like `/plan-ceo-review` and `/plan-eng-review` — interactive, one issue at a time, with the **STOP + AskUserQuestion** pattern. It rates each design dimension 0-10, explains what a 10 looks like, then edits the plan to get there. The rating drives the work: rate low = lots of fixes, rate high = quick pass.
 
-Then it extracts your actual design system by reading the CSS: how many fonts are you really using? What is your heading scale? How many colors? Is your spacing on a grid or arbitrary? It structures this as an **Inferred Design System** and offers to save it as a `DESIGN.md` — so now you have a design system you never had before, derived from what you actually shipped.
-
-The audit covers 80 items across 10 categories. Typography, spacing, hierarchy, color, responsive design, interaction states, motion, content quality, performance feel, and — the headline feature — **AI Slop Detection**. Ten specific anti-patterns that mark a site as machine-generated.
-
-Every finding gets a letter grade (A through F) per category. The report opens with two headline scores: **Design Score** and **AI Slop Score**. "Your site got a B on design but a D on AI Slop" tells you exactly where to focus.
+Seven passes over the plan: information architecture, interaction state coverage, user journey, AI slop risk, design system alignment, responsive/accessibility, and unresolved design decisions. For each pass, it finds gaps and either fixes them directly (obvious ones) or asks you to make a design choice (genuine tradeoffs).
 
 ### Example
 
 ```
-You:   /plan-design-review https://myapp.com
+You:   /plan-design-review
 
-Claude: Design Score: C  |  AI Slop Score: D
+Claude: Initial Design Rating: 4/10
 
-        "The site communicates generic SaaS energy."
-        "I notice the hero section uses a blue-to-purple gradient
-         with a 3-column feature grid below it — the single most
-         recognizable AI-generated layout pattern."
-        "The first 3 things my eye goes to are: the gradient, the
-         symmetrical icon grid, and a 'Get Started' button that
-         looks like every other 'Get Started' button."
-        "If I had to describe this in one word: template."
+        "This plan describes a user dashboard but never specifies
+         what the user sees first. It says 'cards with icons' —
+         which looks like every SaaS template. It mentions zero
+         loading states, zero empty states, and no mobile behavior."
 
-        Inferred Design System:
-        - Fonts: Inter (body), Inter (headings) — 1 font family
-        - Colors: 14 unique non-gray colors (flag: >12)
-        - Heading scale: 36/24/18/16 — flat, no drama between sizes
-        - Spacing: mostly 16px and 24px — no rhythm
+        Pass 1 (Info Architecture): 3/10
+        "A 10 would define primary/secondary/tertiary content
+         hierarchy for every screen."
+        → Added information hierarchy section to plan
 
-        Top 5 Design Improvements:
-        1. Break the 3-column icon grid (High, AI Slop)
-        2. Add heading scale contrast — at least 2:1 ratio (High, Typography)
-        3. Replace uniform border-radius with intentional hierarchy (Medium, Spacing)
-        4. Kill the gradient hero — use a real image or bold typography (High, AI Slop)
-        5. Add a second font for headings — Inter-only reads as generic (Medium, Typography)
+        Pass 2 (Interaction States): 2/10
+        "The plan has 4 UI features but specifies 0 out of 20
+         interaction states (4 features × 5 states each)."
+        → Added interaction state table to plan
 
-        [Full report saved to .gstack/design-reports/]
-        Want me to save this inferred design system as your DESIGN.md?
+        Pass 4 (AI Slop): 4/10
+        "The plan says 'clean, modern UI with cards and icons'
+         and 'hero section with gradient'. These are the top 2
+         AI-generated-looking patterns."
+        → Rewrote UI descriptions with specific, intentional alternatives
+
+        Overall: 4/10 → 8/10 after fixes
+        "Plan is design-complete. Run /design-review after
+         implementation for visual QA."
 ```
 
-This is report only — it never touches your code. Use `/qa-design-review` when you want it to fix what it finds.
+When you re-run it, sections already at 8+ get a quick pass. Sections below 8 get full treatment. For live-site visual audits post-implementation, use `/design-review`.
 
 ---
 
@@ -222,7 +218,7 @@ If you want, the agent will research what's already out there in your space — 
 
 After you agree on the system, it generates an interactive HTML preview page — not just swatches and font samples, but realistic product pages. If you are building a dashboard, you see a dashboard with a sidebar, data tables, and stat cards. If you are building a marketing site, you see a hero section with real copy and a CTA. Everything rendered in your design system, with your product name, in light and dark mode. You see what your product could feel like before a single line of production code is written.
 
-Then it writes `DESIGN.md` to your repo root — your project's design source of truth — and updates `CLAUDE.md` so every future Claude Code session respects the system. From that point on, `/qa-design-review` can audit against it, and any agent working on your frontend knows the rules.
+Then it writes `DESIGN.md` to your repo root — your project's design source of truth — and updates `CLAUDE.md` so every future Claude Code session respects the system. From that point on, `/design-review` can audit against it, and any agent working on your frontend knows the rules.
 
 ### Example
 
@@ -291,22 +287,22 @@ Claude: Wrote DESIGN.md (typography, color, spacing, layout, motion).
 
 ---
 
-## `/qa-design-review`
+## `/design-review`
 
 This is my **designer who codes mode**.
 
-`/plan-design-review` tells you what is wrong. `/qa-design-review` fixes it.
+`/plan-design-review` reviews your plan before implementation. `/design-review` audits and fixes the live site after.
 
-It runs the same 80-item audit, then enters a fix loop: for each design finding, it locates the source file, makes the minimal CSS/styling change, commits with `style(design): FINDING-NNN`, re-navigates to verify, and takes before/after screenshots. One commit per fix, fully bisectable.
+It runs an 80-item visual audit on your live site, then enters a fix loop: for each design finding, it locates the source file, makes the minimal CSS/styling change, commits with `style(design): FINDING-NNN`, re-navigates to verify, and takes before/after screenshots. One commit per fix, fully bisectable.
 
 The self-regulation heuristic is tuned for design work — CSS-only changes get a free pass (they are inherently safe and reversible), but changes to component JSX/TSX files count against the risk budget. Hard cap at 30 fixes. If the risk score exceeds 20%, it stops and asks.
 
 ### Example
 
 ```
-You:   /qa-design-review https://myapp.com
+You:   /design-review https://myapp.com
 
-Claude: [Runs full design audit — same output as /plan-design-review]
+Claude: [Runs full 80-item visual audit on the live site]
         Design Score: C  |  AI Slop Score: D
         12 findings (4 high, 5 medium, 3 polish)
 

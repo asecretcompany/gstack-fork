@@ -1876,8 +1876,120 @@ describeE2E('Deferred skill E2E', () => {
   // Setup-browser-cookies requires interactive browser picker UI
   test.todo('/setup-browser-cookies imports cookies');
 
-  // Gstack-upgrade is destructive: modifies skill installation directory
-  test.todo('/gstack-upgrade completes upgrade flow');
+});
+
+// --- gstack-upgrade E2E ---
+
+describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
+  let upgradeDir: string;
+  let remoteDir: string;
+
+  beforeAll(() => {
+    upgradeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-upgrade-'));
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-remote-'));
+
+    const run = (cmd: string, args: string[], cwd: string) =>
+      spawnSync(cmd, args, { cwd, stdio: 'pipe', timeout: 5000 });
+
+    // Init the "project" repo
+    run('git', ['init'], upgradeDir);
+    run('git', ['config', 'user.email', 'test@test.com'], upgradeDir);
+    run('git', ['config', 'user.name', 'Test'], upgradeDir);
+
+    // Create mock gstack install directory (local-git type)
+    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
+    fs.mkdirSync(mockGstack, { recursive: true });
+
+    // Init as a git repo
+    run('git', ['init'], mockGstack);
+    run('git', ['config', 'user.email', 'test@test.com'], mockGstack);
+    run('git', ['config', 'user.name', 'Test'], mockGstack);
+
+    // Create bare remote
+    run('git', ['init', '--bare'], remoteDir);
+    run('git', ['remote', 'add', 'origin', remoteDir], mockGstack);
+
+    // Write old version files
+    fs.writeFileSync(path.join(mockGstack, 'VERSION'), '0.5.0\n');
+    fs.writeFileSync(path.join(mockGstack, 'CHANGELOG.md'),
+      '# Changelog\n\n## 0.5.0 — 2026-03-01\n\n- Initial release\n');
+    fs.writeFileSync(path.join(mockGstack, 'setup'),
+      '#!/bin/bash\necho "Setup completed"\n', { mode: 0o755 });
+
+    // Initial commit + push
+    run('git', ['add', '.'], mockGstack);
+    run('git', ['commit', '-m', 'initial'], mockGstack);
+    run('git', ['push', '-u', 'origin', 'HEAD:main'], mockGstack);
+
+    // Create new version (simulate upstream release)
+    fs.writeFileSync(path.join(mockGstack, 'VERSION'), '0.6.0\n');
+    fs.writeFileSync(path.join(mockGstack, 'CHANGELOG.md'),
+      '# Changelog\n\n## 0.6.0 — 2026-03-15\n\n- New feature: interactive design review\n- Fix: snapshot flag validation\n\n## 0.5.0 — 2026-03-01\n\n- Initial release\n');
+    run('git', ['add', '.'], mockGstack);
+    run('git', ['commit', '-m', 'release 0.6.0'], mockGstack);
+    run('git', ['push', 'origin', 'HEAD:main'], mockGstack);
+
+    // Reset working copy back to old version
+    run('git', ['reset', '--hard', 'HEAD~1'], mockGstack);
+
+    // Copy gstack-upgrade skill
+    fs.mkdirSync(path.join(upgradeDir, 'gstack-upgrade'), { recursive: true });
+    fs.copyFileSync(
+      path.join(ROOT, 'gstack-upgrade', 'SKILL.md'),
+      path.join(upgradeDir, 'gstack-upgrade', 'SKILL.md'),
+    );
+
+    // Commit so git repo is clean
+    run('git', ['add', '.'], upgradeDir);
+    run('git', ['commit', '-m', 'initial project'], upgradeDir);
+  });
+
+  afterAll(() => {
+    try { fs.rmSync(upgradeDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(remoteDir, { recursive: true, force: true }); } catch {}
+  });
+
+  testIfSelected('gstack-upgrade-happy-path', async () => {
+    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
+    const result = await runSkillTest({
+      prompt: `Read gstack-upgrade/SKILL.md for the upgrade workflow.
+
+You are running /gstack-upgrade standalone. The gstack installation is at ./.claude/skills/gstack (local-git type — it has a .git directory with an origin remote).
+
+Current version: 0.5.0. A new version 0.6.0 is available on origin/main.
+
+Follow the standalone upgrade flow:
+1. Detect install type (local-git)
+2. Run git fetch origin && git reset --hard origin/main in the install directory
+3. Run the setup script
+4. Show what's new from CHANGELOG
+
+Skip any AskUserQuestion calls — auto-approve the upgrade. Write a summary of what you did to stdout.
+
+IMPORTANT: The install directory is at ./.claude/skills/gstack — use that exact path.`,
+      workingDirectory: upgradeDir,
+      maxTurns: 20,
+      timeout: 180_000,
+      testName: 'gstack-upgrade-happy-path',
+      runId,
+    });
+
+    logCost('/gstack-upgrade happy path', result);
+
+    // Check that the version was updated
+    const versionAfter = fs.readFileSync(path.join(mockGstack, 'VERSION'), 'utf-8').trim();
+    const output = result.output || '';
+    const mentionsUpgrade = output.toLowerCase().includes('0.6.0') ||
+      output.toLowerCase().includes('upgrade') ||
+      output.toLowerCase().includes('updated');
+
+    recordE2E('/gstack-upgrade happy path', 'gstack-upgrade E2E', result, {
+      passed: versionAfter === '0.6.0' && ['success', 'error_max_turns'].includes(result.exitReason),
+    });
+
+    expect(['success', 'error_max_turns']).toContain(result.exitReason);
+    expect(versionAfter).toBe('0.6.0');
+  }, 240_000);
 });
 
 // --- Design Consultation E2E ---
@@ -2178,15 +2290,13 @@ Skip research. Skip any AskUserQuestion calls — this is non-interactive. Gener
   }, 420_000);
 });
 
-// --- Plan Design Review E2E ---
+// --- Plan Design Review E2E (plan-mode) ---
 
-describeIfSelected('Plan Design Review E2E', ['plan-design-review-audit', 'plan-design-review-export'], () => {
+describeIfSelected('Plan Design Review E2E', ['plan-design-review-plan-mode', 'plan-design-review-no-ui-scope'], () => {
   let reviewDir: string;
 
   beforeAll(() => {
-    testServer = testServer || startTestServer();
     reviewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-plan-design-'));
-    setupBrowseShims(reviewDir);
 
     const { spawnSync } = require('child_process');
     const run = (cmd: string, args: string[]) =>
@@ -2195,9 +2305,6 @@ describeIfSelected('Plan Design Review E2E', ['plan-design-review-audit', 'plan-
     run('git', ['init']);
     run('git', ['config', 'user.email', 'test@test.com']);
     run('git', ['config', 'user.name', 'Test']);
-    fs.writeFileSync(path.join(reviewDir, 'index.html'), '<h1>Test</h1>\n');
-    run('git', ['add', '.']);
-    run('git', ['commit', '-m', 'initial']);
 
     // Copy plan-design-review skill
     fs.mkdirSync(path.join(reviewDir, 'plan-design-review'), { recursive: true });
@@ -2205,102 +2312,136 @@ describeIfSelected('Plan Design Review E2E', ['plan-design-review-audit', 'plan-
       path.join(ROOT, 'plan-design-review', 'SKILL.md'),
       path.join(reviewDir, 'plan-design-review', 'SKILL.md'),
     );
+
+    // Create a plan file with intentional design gaps
+    fs.writeFileSync(path.join(reviewDir, 'plan.md'), `# Plan: User Dashboard
+
+## Context
+Build a user dashboard that shows account stats, recent activity, and settings.
+
+## Implementation
+1. Create a dashboard page at /dashboard
+2. Show user stats (posts, followers, engagement rate)
+3. Add a recent activity feed
+4. Add a settings panel
+5. Use a clean, modern UI with cards and icons
+6. Add a hero section at the top with a gradient background
+
+## Technical Details
+- React components with Tailwind CSS
+- API endpoint: GET /api/dashboard
+- WebSocket for real-time activity updates
+`);
+
+    run('git', ['add', '.']);
+    run('git', ['commit', '-m', 'initial plan']);
   });
 
   afterAll(() => {
     try { fs.rmSync(reviewDir, { recursive: true, force: true }); } catch {}
   });
 
-  testIfSelected('plan-design-review-audit', async () => {
+  testIfSelected('plan-design-review-plan-mode', async () => {
     const result = await runSkillTest({
-      prompt: `IMPORTANT: The browse binary is already assigned below as B. Do NOT search for it or run the SKILL.md setup block — just use $B directly.
+      prompt: `Read plan-design-review/SKILL.md for the design review workflow.
 
-B="${browseBin}"
+Review the plan in ./plan.md. This plan has several design gaps — it uses vague language like "clean, modern UI" and "cards and icons", mentions a "hero section with gradient" (AI slop), and doesn't specify empty states, error states, loading states, responsive behavior, or accessibility.
 
-Read plan-design-review/SKILL.md for the design review workflow.
+Skip the preamble bash block. Skip any AskUserQuestion calls — this is non-interactive. Rate each design dimension 0-10 and explain what would make it a 10. Then EDIT plan.md to add the missing design decisions (interaction state table, empty states, responsive behavior, etc.).
 
-Review the site at ${testServer.url}. Use --quick mode (homepage + 2 pages). Skip any AskUserQuestion calls — this is non-interactive. Write your audit report to ./design-audit.md. Do not offer to create DESIGN.md.
-
-EFFICIENCY: Skip the preamble bash block. Combine multiple browse commands into single bash blocks (e.g. run all Phase 2 JS extractions in one block). Write the report as soon as you have enough data — do not over-explore.`,
+IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan review, not a live site audit. Just read the plan file, review it, and edit it to fix the gaps.`,
       workingDirectory: reviewDir,
-      maxTurns: 30,
-      timeout: 360_000,
-      testName: 'plan-design-review-audit',
+      maxTurns: 15,
+      timeout: 300_000,
+      testName: 'plan-design-review-plan-mode',
       runId,
     });
 
-    logCost('/plan-design-review audit', result);
+    logCost('/plan-design-review plan-mode', result);
 
-    const reportPath = path.join(reviewDir, 'design-audit.md');
-    const reportExists = fs.existsSync(reportPath);
-    let reportContent = '';
-    if (reportExists) {
-      reportContent = fs.readFileSync(reportPath, 'utf-8');
-    }
+    // Check that the agent produced design ratings (0-10 scale)
+    const output = result.output || '';
+    const hasRatings = /\d+\/10/.test(output);
+    const hasDesignContent = output.toLowerCase().includes('information architecture') ||
+      output.toLowerCase().includes('interaction state') ||
+      output.toLowerCase().includes('ai slop') ||
+      output.toLowerCase().includes('hierarchy');
 
-    const hasFirstImpression = reportContent.toLowerCase().includes('first impression') ||
-      reportContent.toLowerCase().includes('impression');
+    // Check that the plan file was edited (the core new behavior)
+    const planAfter = fs.readFileSync(path.join(reviewDir, 'plan.md'), 'utf-8');
+    const planOriginal = `# Plan: User Dashboard`;
+    const planWasEdited = planAfter.length > 300; // Original is ~450 chars, edited should be much longer
+    const planHasDesignAdditions = planAfter.toLowerCase().includes('empty') ||
+      planAfter.toLowerCase().includes('loading') ||
+      planAfter.toLowerCase().includes('error') ||
+      planAfter.toLowerCase().includes('state') ||
+      planAfter.toLowerCase().includes('responsive') ||
+      planAfter.toLowerCase().includes('accessibility');
 
-    recordE2E('/plan-design-review audit', 'Plan Design Review E2E', result, {
-      passed: reportExists && ['success', 'error_max_turns'].includes(result.exitReason),
+    recordE2E('/plan-design-review plan-mode', 'Plan Design Review E2E', result, {
+      passed: hasDesignContent && planWasEdited && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
     expect(['success', 'error_max_turns']).toContain(result.exitReason);
-    expect(reportExists).toBe(true);
-    if (reportExists) {
-      expect(reportContent.length).toBeGreaterThan(200);
-    }
-  }, 420_000);
+    // Agent should produce design-relevant output about the plan
+    expect(hasDesignContent).toBe(true);
+    // Agent should have edited the plan file to add missing design decisions
+    expect(planWasEdited).toBe(true);
+    expect(planHasDesignAdditions).toBe(true);
+  }, 360_000);
 
-  testIfSelected('plan-design-review-export', async () => {
-    // Clean up previous test artifacts
-    try { fs.unlinkSync(path.join(reviewDir, 'design-audit.md')); } catch {}
+  testIfSelected('plan-design-review-no-ui-scope', async () => {
+    // Write a backend-only plan
+    fs.writeFileSync(path.join(reviewDir, 'backend-plan.md'), `# Plan: Database Migration
+
+## Context
+Migrate user records from PostgreSQL to a new schema with better indexing.
+
+## Implementation
+1. Create migration to add new columns to users table
+2. Backfill data from legacy columns
+3. Add database indexes for common query patterns
+4. Update ActiveRecord models
+5. Run migration in staging first, then production
+`);
 
     const result = await runSkillTest({
-      prompt: `IMPORTANT: The browse binary is already assigned below as B. Do NOT search for it or run the SKILL.md setup block — just use $B directly.
+      prompt: `Read plan-design-review/SKILL.md for the design review workflow.
 
-B="${browseBin}"
+Review the plan in ./backend-plan.md. This is a pure backend database migration plan with no UI changes.
 
-Read plan-design-review/SKILL.md for the design review workflow.
+Skip the preamble bash block. Skip any AskUserQuestion calls — this is non-interactive. Write your findings directly to stdout.
 
-Review ${testServer.url} with --quick mode. Skip any AskUserQuestion calls — this is non-interactive. After Phase 2 (Design System Extraction), write a DESIGN.md to the working directory. Also write the audit report to ./design-audit.md.`,
+IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan review, not a live site audit.`,
       workingDirectory: reviewDir,
-      maxTurns: 25,
-      timeout: 360_000,
-      testName: 'plan-design-review-export',
+      maxTurns: 10,
+      timeout: 180_000,
+      testName: 'plan-design-review-no-ui-scope',
       runId,
     });
 
-    logCost('/plan-design-review export', result);
+    logCost('/plan-design-review no-ui-scope', result);
 
-    const designPath = path.join(reviewDir, 'DESIGN.md');
-    const reportPath = path.join(reviewDir, 'design-audit.md');
-    const designExists = fs.existsSync(designPath);
-    const reportExists = fs.existsSync(reportPath);
+    // Agent should detect no UI scope and exit early
+    const output = result.output || '';
+    const detectsNoUI = output.toLowerCase().includes('no ui') ||
+      output.toLowerCase().includes('no frontend') ||
+      output.toLowerCase().includes('no design') ||
+      output.toLowerCase().includes('not applicable') ||
+      output.toLowerCase().includes('backend');
 
-    let designContent = '';
-    if (designExists) {
-      designContent = fs.readFileSync(designPath, 'utf-8');
-    }
-
-    const hasTypography = designContent.toLowerCase().includes('typography') || designContent.toLowerCase().includes('font');
-    const hasColor = designContent.toLowerCase().includes('color');
-
-    recordE2E('/plan-design-review export', 'Plan Design Review E2E', result, {
-      passed: designExists && ['success', 'error_max_turns'].includes(result.exitReason),
+    recordE2E('/plan-design-review no-ui-scope', 'Plan Design Review E2E', result, {
+      passed: detectsNoUI && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
     expect(['success', 'error_max_turns']).toContain(result.exitReason);
-    // DESIGN.md export is best-effort — agent may not always produce it
-    if (designExists) {
-      expect(hasTypography || hasColor).toBe(true);
-    }
-  }, 420_000);
+    expect(detectsNoUI).toBe(true);
+  }, 240_000);
 });
 
-// --- QA Design Review E2E ---
+// --- Design Review E2E (live-site audit + fix) ---
 
-describeIfSelected('QA Design Review E2E', ['qa-design-review-fix'], () => {
+describeIfSelected('Design Review E2E', ['design-review-fix'], () => {
   let qaDesignDir: string;
   let qaDesignServer: ReturnType<typeof Bun.serve> | null = null;
 
@@ -2376,11 +2517,11 @@ describeIfSelected('QA Design Review E2E', ['qa-design-review-fix'], () => {
       },
     });
 
-    // Copy qa-design-review skill
-    fs.mkdirSync(path.join(qaDesignDir, 'qa-design-review'), { recursive: true });
+    // Copy design-review skill
+    fs.mkdirSync(path.join(qaDesignDir, 'design-review'), { recursive: true });
     fs.copyFileSync(
-      path.join(ROOT, 'qa-design-review', 'SKILL.md'),
-      path.join(qaDesignDir, 'qa-design-review', 'SKILL.md'),
+      path.join(ROOT, 'design-review', 'SKILL.md'),
+      path.join(qaDesignDir, 'design-review', 'SKILL.md'),
     );
   });
 
@@ -2389,7 +2530,7 @@ describeIfSelected('QA Design Review E2E', ['qa-design-review-fix'], () => {
     try { fs.rmSync(qaDesignDir, { recursive: true, force: true }); } catch {}
   });
 
-  test('Test 7: /qa-design-review audits and fixes design issues', async () => {
+  test('Test 7: /design-review audits and fixes design issues', async () => {
     const serverUrl = `http://localhost:${(qaDesignServer as any)?.port}`;
 
     const result = await runSkillTest({
@@ -2397,17 +2538,17 @@ describeIfSelected('QA Design Review E2E', ['qa-design-review-fix'], () => {
 
 B="${browseBin}"
 
-Read qa-design-review/SKILL.md for the design review + fix workflow.
+Read design-review/SKILL.md for the design review + fix workflow.
 
 Review the site at ${serverUrl}. Use --quick mode. Skip any AskUserQuestion calls — this is non-interactive. Fix up to 3 issues max. Write your report to ./design-audit.md.`,
       workingDirectory: qaDesignDir,
       maxTurns: 30,
       timeout: 360_000,
-      testName: 'qa-design-review-fix',
+      testName: 'design-review-fix',
       runId,
     });
 
-    logCost('/qa-design-review fix', result);
+    logCost('/design-review fix', result);
 
     const reportPath = path.join(qaDesignDir, 'design-audit.md');
     const reportExists = fs.existsSync(reportPath);
@@ -2419,7 +2560,7 @@ Review the site at ${serverUrl}. Use --quick mode. Skip any AskUserQuestion call
     const commits = gitLog.stdout.toString().trim().split('\n');
     const designFixCommits = commits.filter((c: string) => c.includes('style(design)'));
 
-    recordE2E('/qa-design-review fix', 'QA Design Review E2E', result, {
+    recordE2E('/design-review fix', 'Design Review E2E', result, {
       passed: ['success', 'error_max_turns'].includes(result.exitReason),
     });
 

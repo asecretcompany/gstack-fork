@@ -84,9 +84,12 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'design-consultation-research': ['design-consultation/**'],
   'design-consultation-existing': ['design-consultation/**'],
   'design-consultation-preview':  ['design-consultation/**'],
-  'plan-design-review-audit':     ['plan-design-review/**'],
-  'plan-design-review-export':    ['plan-design-review/**'],
-  'qa-design-review-fix':         ['qa-design-review/**', 'browse/src/**'],
+  'plan-design-review-plan-mode':   ['plan-design-review/**'],
+  'plan-design-review-no-ui-scope': ['plan-design-review/**'],
+  'design-review-fix':              ['design-review/**', 'browse/src/**'],
+
+  // gstack-upgrade
+  'gstack-upgrade-happy-path': ['gstack-upgrade/**'],
 };
 
 /**
@@ -102,6 +105,24 @@ export const LLM_JUDGE_TOUCHFILES: Record<string, string[]> = {
   'qa/SKILL.md health rubric':        ['qa/SKILL.md', 'qa/SKILL.md.tmpl'],
   'cross-skill greptile consistency': ['review/SKILL.md', 'review/SKILL.md.tmpl', 'ship/SKILL.md', 'ship/SKILL.md.tmpl', 'review/greptile-triage.md', 'retro/SKILL.md', 'retro/SKILL.md.tmpl'],
   'baseline score pinning':           ['SKILL.md', 'SKILL.md.tmpl', 'test/fixtures/eval-baselines.json'],
+
+  // Ship & Release
+  'ship/SKILL.md workflow':               ['ship/SKILL.md', 'ship/SKILL.md.tmpl'],
+  'document-release/SKILL.md workflow':   ['document-release/SKILL.md', 'document-release/SKILL.md.tmpl'],
+
+  // Plan Reviews
+  'plan-ceo-review/SKILL.md modes':       ['plan-ceo-review/SKILL.md', 'plan-ceo-review/SKILL.md.tmpl'],
+  'plan-eng-review/SKILL.md sections':    ['plan-eng-review/SKILL.md', 'plan-eng-review/SKILL.md.tmpl'],
+  'plan-design-review/SKILL.md passes':   ['plan-design-review/SKILL.md', 'plan-design-review/SKILL.md.tmpl'],
+
+  // Design skills
+  'design-review/SKILL.md fix loop':      ['design-review/SKILL.md', 'design-review/SKILL.md.tmpl'],
+  'design-consultation/SKILL.md research': ['design-consultation/SKILL.md', 'design-consultation/SKILL.md.tmpl'],
+
+  // Other skills
+  'retro/SKILL.md instructions':          ['retro/SKILL.md', 'retro/SKILL.md.tmpl'],
+  'qa-only/SKILL.md workflow':            ['qa-only/SKILL.md', 'qa-only/SKILL.md.tmpl'],
+  'gstack-upgrade/SKILL.md upgrade flow': ['gstack-upgrade/SKILL.md', 'gstack-upgrade/SKILL.md.tmpl'],
 };
 
 /**

@@ -70,7 +70,7 @@ describe('gen-skill-docs', () => {
     { dir: 'setup-browser-cookies', name: 'setup-browser-cookies' },
     { dir: 'gstack-upgrade', name: 'gstack-upgrade' },
     { dir: 'plan-design-review', name: 'plan-design-review' },
-    { dir: 'qa-design-review', name: 'qa-design-review' },
+    { dir: 'design-review', name: 'design-review' },
     { dir: 'design-consultation', name: 'design-consultation' },
   ];
 

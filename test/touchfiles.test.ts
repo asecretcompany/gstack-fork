@@ -66,7 +66,7 @@ describe('selectTests', () => {
     expect(result.selected).toContain('browse-snapshot');
     expect(result.selected).toContain('qa-quick');
     expect(result.selected).toContain('qa-fix-loop');
-    expect(result.selected).toContain('qa-design-review-fix');
+    expect(result.selected).toContain('design-review-fix');
     expect(result.reason).toBe('diff');
     // Should NOT include unrelated tests
     expect(result.selected).not.toContain('plan-ceo-review');

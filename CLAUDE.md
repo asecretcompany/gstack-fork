@@ -53,7 +53,7 @@ gstack/
 │   └── skill-e2e.test.ts         # Tier 2: E2E via claude -p (~$3.85/run)
 ├── qa-only/         # /qa-only skill (report-only QA, no fixes)
 ├── plan-design-review/  # /plan-design-review skill (report-only design audit)
-├── qa-design-review/    # /qa-design-review skill (design audit + fix loop)
+├── design-review/    # /design-review skill (design audit + fix loop)
 ├── ship/            # Ship workflow skill
 ├── review/          # PR review skill
 ├── plan-ceo-review/ # /plan-ceo-review skill
@@ -118,6 +118,22 @@ symlink or a real copy. If it's a symlink to your working directory, be aware th
 **For plan reviews:** When reviewing plans that modify skill templates or the
 gen-skill-docs pipeline, consider whether the changes should be tested in isolation
 before going live (especially if the user is actively using gstack in other windows).
+
+## Commit style
+
+**Always bisect commits.** Every commit should be a single logical change. When
+you've made multiple changes (e.g., a rename + a rewrite + new tests), split them
+into separate commits before pushing. Each commit should be independently
+understandable and revertable.
+
+Examples of good bisection:
+- Rename/move separate from behavior changes
+- Test infrastructure (touchfiles, helpers) separate from test implementations
+- Template changes separate from generated file regeneration
+- Mechanical refactors separate from new features
+
+When the user says "bisect commit" or "bisect and push," split staged/unstaged
+changes into logical commits and push.
 
 ## CHANGELOG style
 

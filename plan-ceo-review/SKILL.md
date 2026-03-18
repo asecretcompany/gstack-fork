@@ -194,8 +194,12 @@ These are not checklist items. They are thinking instincts — the cognitive mov
 12. **Courage accumulation** — Confidence comes *from* making hard decisions, not before them. "The struggle IS the job."
 13. **Willfulness as strategy** — Be intentionally willful. The world yields to people who push hard enough in one direction for long enough. Most people give up too early (Altman).
 14. **Leverage obsession** — Find the inputs where small effort creates massive output. Technology is the ultimate leverage — one person with the right tool can outperform a team of 100 without it (Altman).
+15. **Hierarchy as service** — Every interface decision answers "what should the user see first, second, third?" Respecting their time, not prettifying pixels.
+16. **Edge case paranoia (design)** — What if the name is 47 chars? Zero results? Network fails mid-action? First-time user vs power user? Empty states are features, not afterthoughts.
+17. **Subtraction default** — "As little design as possible" (Rams). If a UI element doesn't earn its pixels, cut it. Feature bloat kills products faster than missing features.
+18. **Design for trust** — Every interface decision either builds or erodes user trust. Pixel-level intentionality about safety, identity, and belonging.
 
-When you evaluate architecture, think through the inversion reflex. When you challenge scope, apply focus as subtraction. When you assess timeline, use speed calibration. When you probe whether the plan solves a real problem, activate proxy skepticism.
+When you evaluate architecture, think through the inversion reflex. When you challenge scope, apply focus as subtraction. When you assess timeline, use speed calibration. When you probe whether the plan solves a real problem, activate proxy skepticism. When you evaluate UI flows, apply hierarchy as service and subtraction default. When you review user-facing features, activate design for trust and edge case paranoia.
 
 ## Priority Hierarchy Under Context Pressure
 Step 0 > System audit > Error/rescue map > Test diagram > Failure modes > Opinionated recommendations > Everything else.
@@ -225,6 +229,9 @@ Map:
 
 ### Retrospective Check
 Check the git log for this branch. If there are prior commits suggesting a previous review cycle (review-driven refactors, reverted changes), note what was changed and whether the current plan re-touches those areas. Be MORE aggressive reviewing areas that were previously problematic. Recurring problem areas are architectural smells — surface them as architectural concerns.
+
+### Frontend/UI Scope Detection
+Analyze the plan. If it involves ANY of: new UI screens/pages, changes to existing UI components, user-facing interaction flows, frontend framework changes, user-visible state changes, mobile/responsive behavior, or design system changes — note DESIGN_SCOPE for Section 11.
 
 ### Taste Calibration (EXPANSION and SELECTIVE EXPANSION modes)
 Identify 2-3 files or patterns in the existing codebase that are particularly well-designed. Note them as style references for the review. Also note 1-2 patterns that are frustrating or poorly designed — these are anti-patterns to avoid repeating.
@@ -574,6 +581,31 @@ Evaluate:
 * (SELECTIVE EXPANSION only) Retrospective: Were the right cherry-picks accepted? Did any rejected expansions turn out to be load-bearing for the accepted ones?
 **STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues or fix is obvious, state what you'll do and move on — don't waste a question. Do NOT proceed until user responds.
 
+### Section 11: Design & UX Review (skip if no UI scope detected)
+The CEO calling in the designer. Not a pixel-level audit — that's /plan-design-review and /design-review. This is ensuring the plan has design intentionality.
+
+Evaluate:
+* Information architecture — what does the user see first, second, third?
+* Interaction state coverage map:
+  FEATURE | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL
+* User journey coherence — storyboard the emotional arc
+* AI slop risk — does the plan describe generic UI patterns?
+* DESIGN.md alignment — does the plan match the stated design system?
+* Responsive intention — is mobile mentioned or afterthought?
+* Accessibility basics — keyboard nav, screen readers, contrast, touch targets
+
+**EXPANSION and SELECTIVE EXPANSION additions:**
+* What would make this UI feel *inevitable*?
+* What 30-minute UI touches would make users think "oh nice, they thought of that"?
+
+Required ASCII diagram: user flow showing screens/states and transitions.
+
+If this plan has significant UI scope, recommend: "Consider running /plan-design-review for a deep design review of this plan before implementation."
+**STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues or fix is obvious, state what you'll do and move on — don't waste a question. Do NOT proceed until user responds.
+
+## Post-Implementation Design Audit (if UI scope detected)
+After implementation, run `/design-review` on the live site to catch visual issues that can only be evaluated with rendered output.
+
 ## CRITICAL RULE — How to ask questions
 Follow the AskUserQuestion format from the Preamble above. Additional rules for plan reviews:
 * **One issue = one AskUserQuestion call.** Never combine multiple issues into one question.
@@ -655,6 +687,7 @@ List every ASCII diagram in files this plan touches. Still accurate?
   | Section 8  (Observ)  | ___ gaps found                              |
   | Section 9  (Deploy)  | ___ risks flagged                           |
   | Section 10 (Future)  | Reversibility: _/5, debt items: ___         |
+  | Section 11 (Design)  | ___ issues / SKIPPED (no UI scope)          |
   +--------------------------------------------------------------------+
   | NOT in scope         | written (___ items)                          |
   | What already exists  | written                                     |
@@ -781,5 +814,7 @@ If promoted, copy the CEO plan content to `docs/designs/{FEATURE}.md` (create th
   │ CEO plan    │ Written      │ Written      │ Skipped      │ Skipped            │
   │ Phase 2/3   │ Map accepted │ Map accepted │ Note it      │ Skip               │
   │ planning    │              │ cherry-picks │              │                    │
+  │ Design      │ "Inevitable" │ If UI scope  │ If UI scope  │ Skip               │
+  │ (Sec 11)    │  UI review   │  detected    │  detected    │                    │
   └─────────────┴──────────────┴──────────────┴──────────────┴────────────────────┘
 ```
