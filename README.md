@@ -1,5 +1,11 @@
 # gstack
 
+> **🚀 Antigravity Port** — This fork adapts gstack for [Google Antigravity](https://blog.google/technology/google-deepmind/introducing-antigravity/), the agent-first IDE by Google DeepMind. See **[ANTIGRAVITY.md](ANTIGRAVITY.md)** for the complete porting guide, or check the `.agent/` directory for ready-to-use workflows.
+>
+> Original project by [Garry Tan](https://github.com/garrytan/gstack) · MIT License · Full credit to Garry and the gstack contributors.
+
+---
+
 Hi, I'm [Garry Tan](https://x.com/garrytan). I'm President & CEO of [Y Combinator](https://www.ycombinator.com/), where I've worked with thousands of startups including Coinbase, Instacart, and Rippling when the founders were just one or two people in a garage — companies now worth tens of billions of dollars. Before YC, I designed the Palantir logo and was one of the first eng manager/PM/designers there. I cofounded Posterous, a blog platform we sold to Twitter. I built Bookface, YC's internal social network, back in 2013. I've been building products as a designer, PM, and eng manager for a long time.
 
 And right now I am in the middle of something that feels like a new era entirely.
@@ -192,6 +198,7 @@ Fifteen specialists and six power tools. All slash commands. All Markdown. All f
 
 | Doc | What it covers |
 |-----|---------------|
+| **[Antigravity Port](ANTIGRAVITY.md)** | **Using gstack with Google Antigravity — concept mapping, quick start, workflows** |
 | [Skill Deep Dives](docs/skills.md) | Philosophy, examples, and workflow for every skill (includes Greptile integration) |
 | [Architecture](ARCHITECTURE.md) | Design decisions and system internals |
 | [Browser Reference](BROWSER.md) | Full command reference for `/browse` |
